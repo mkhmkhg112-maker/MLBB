@@ -1,0 +1,55 @@
+-- LocalScript > StarterPlayerScripts
+
+local P=game.Players.LocalPlayer
+local U=game:GetService("UserInputService")
+local R=game:GetService("RunService")
+local C=P.Character or P.CharacterAdded:Wait()
+local H=C:WaitForChild("Humanoid")
+local RP=C:WaitForChild("HumanoidRootPart")
+
+local fly=false
+local BV
+
+-- F = วิ่งเร็ว
+-- G = บิน
+-- H = กระโดดสูง
+U.InputBegan:Connect(function(x,g)
+ if g then return end
+
+ if x.KeyCode==Enum.KeyCode.F then
+  H.WalkSpeed=H.WalkSpeed==40 and 16 or 40
+ end
+
+ if x.KeyCode==Enum.KeyCode.H then
+  H.JumpPower=H.JumpPower==100 and 50 or 100
+ end
+
+ if x.KeyCode==Enum.KeyCode.G then
+  fly=not fly
+  if fly then
+   BV=Instance.new("BodyVelocity",RP)
+   BV.MaxForce=Vector3.one*math.huge
+  elseif BV then
+   BV:Destroy();BV=nil
+  end
+ end
+end)
+
+R.RenderStepped:Connect(function()
+ if not fly or not BV then return end
+ local v=Vector3.zero
+ local c=workspace.CurrentCamera
+
+ if U:IsKeyDown(Enum.KeyCode.W) then v+=c.CFrame.LookVector end
+ if U:IsKeyDown(Enum.KeyCode.S) then v-=c.CFrame.LookVector end
+ if U:IsKeyDown(Enum.KeyCode.A) then v-=c.CFrame.RightVector end
+ if U:IsKeyDown(Enum.KeyCode.D) then v+=c.CFrame.RightVector end
+ if U:IsKeyDown(Enum.KeyCode.Space) then v+=Vector3.yAxis end
+ if U:IsKeyDown(Enum.KeyCode.LeftControl) then v-=Vector3.yAxis end
+
+ BV.Velocity=v.Magnitude>0 and v.Unit*50 or Vector3.zero
+end)
+
+ปุ่ม: "F" วิ่งเร็ว · "G" บิน · "H" กระโดดสูง
+
+ส่วน เพิ่มเงินอัตโนมัติ และ AFK ตอนออกจากจอ ผมแนะนำทำเป็น ServerScript แยก เพื่อให้ระบบเงินของเกมปลอดภัยและ AFK ทำงานตามกติกาของเกมครับ
