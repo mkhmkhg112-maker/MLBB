@@ -1,0 +1,207 @@
+-- Mobile Admin/Test GUI สำหรับเกมของคุณเอง
+-- วาง LocalScript นี้ใน StarterPlayer > StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CollectionService = game:GetService("CollectionService")
+
+local player = Players.LocalPlayer
+
+local WALK_NORMAL = 16
+local WALK_FAST = 32
+local JUMP_NORMAL = 50
+local JUMP_HIGH = 100
+
+local flying = false
+local fast = false
+local highJump = false
+local afk = false
+local autoCollect = false
+
+local character
+local humanoid
+local root
+
+local function setupCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	root = char:WaitForChild("HumanoidRootPart")
+
+	humanoid.WalkSpeed = fast and WALK_FAST or WALK_NORMAL
+	humanoid.JumpPower = highJump and JUMP_HIGH or JUMP_NORMAL
+end
+
+if player.Character then
+	setupCharacter(player.Character)
+end
+
+player.CharacterAdded:Connect(setupCharacter)
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "MobileControl"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- ปุ่ม F วงกลม
+local fButton = Instance.new("TextButton")
+fButton.Name = "FButton"
+fButton.Size = UDim2.fromOffset(64, 64)
+fButton.Position = UDim2.new(1, -85, 1, -150)
+fButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+fButton.TextColor3 = Color3.new(1, 1, 1)
+fButton.Text = "F"
+fButton.TextScaled = true
+fButton.Font = Enum.Font.GothamBold
+fButton.Parent = gui
+
+local fCorner = Instance.new("UICorner")
+fCorner.CornerRadius = UDim.new(1, 0)
+fCorner.Parent = fButton
+
+-- เมนู
+local menu = Instance.new("Frame")
+menu.Name = "Menu"
+menu.Size = UDim2.fromOffset(210, 330)
+menu.Position = UDim2.new(1, -230, 1, -500)
+menu.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+menu.Visible = false
+menu.Parent = gui
+
+local menuCorner = Instance.new("UICorner")
+menuCorner.CornerRadius = UDim.new(0, 16)
+menuCorner.Parent = menu
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 8)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.VerticalAlignment = Enum.VerticalAlignment.Center
+layout.Parent = menu
+
+local function makeButton(text)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromOffset(180, 48)
+	button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.Text = text
+	button.TextScaled = true
+	button.Font = Enum.Font.GothamBold
+	button.Parent = menu
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = button
+
+	return button
+end
+
+local flyButton = makeButton("บิน: ปิด")
+local speedButton = makeButton("วิ่งเร็ว: ปิด")
+local jumpButton = makeButton("กระโดดสูง: ปิด")
+local afkButton = makeButton("AFK: ปิด")
+local collectButton = makeButton("เก็บเหรียญ: ปิด")
+
+-- เปิด/ปิดเมนูด้วย F
+fButton.Activated:Connect(function()
+	menu.Visible = not menu.Visible
+end)
+
+-- วิ่งเร็ว
+speedButton.Activated:Connect(function()
+	fast = not fast
+
+	if humanoid then
+		humanoid.WalkSpeed = fast and WALK_FAST or WALK_NORMAL
+	end
+
+	speedButton.Text = fast and "วิ่งเร็ว: เปิด" or "วิ่งเร็ว: ปิด"
+end)
+
+-- กระโดดสูง
+jumpButton.Activated:Connect(function()
+	highJump = not highJump
+
+	if humanoid then
+		humanoid.JumpPower = highJump and JUMP_HIGH or JUMP_NORMAL
+	end
+
+	jumpButton.Text = highJump and "กระโดดสูง: เปิด" or "กระโดดสูง: ปิด"
+end)
+
+-- บิน
+flyButton.Activated:Connect(function()
+	flying = not flying
+	flyButton.Text = flying and "บิน: เปิด" or "บิน: ปิด"
+end)
+
+-- AFK
+afkButton.Activated:Connect(function()
+	afk = not afk
+	afkButton.Text = afk and "AFK: เปิด" or "AFK: ปิด"
+end)
+
+-- เก็บเหรียญอัตโนมัติ
+-- เหรียญในเกมควรติด Tag ชื่อ "Coin" ผ่าน CollectionService
+collectButton.Activated:Connect(function()
+	autoCollect = not autoCollect
+	collectButton.Text =
+		autoCollect and "เก็บเหรียญ: เปิด" or "เก็บเหรียญ: ปิด"
+end)
+
+-- ระบบบิน
+RunService.RenderStepped:Connect(function()
+	if not character or not root or not humanoid then
+		return
+	end
+
+	if flying then
+		local camera = workspace.CurrentCamera
+		local direction = humanoid.MoveDirection
+
+		if direction.Magnitude > 0 then
+			root.AssemblyLinearVelocity =
+				direction * 50 + Vector3.new(0, 5, 0)
+		else
+			root.AssemblyLinearVelocity = Vector3.zero
+		end
+
+		root.CFrame = CFrame.lookAt(
+			root.Position,
+			root.Position + camera.CFrame.LookVector
+		)
+	end
+
+	-- AFK: ให้ตัวละครอยู่นิ่ง
+	if afk and not flying then
+		humanoid:Move(Vector3.zero)
+	end
+end)
+
+-- เก็บเหรียญที่ติด Tag "Coin"
+task.spawn(function()
+	while true do
+		task.wait(0.15)
+
+		if autoCollect and root then
+			local nearestCoin
+			local nearestDistance = math.huge
+
+			for _, coin in ipairs(CollectionService:GetTagged("Coin")) do
+				if coin:IsA("BasePart") then
+					local distance = (coin.Position - root.Position).Magnitude
+
+					if distance < nearestDistance then
+						nearestDistance = distance
+						nearestCoin = coin
+					end
+				end
+			end
+
+			if nearestCoin and nearestDistance < 60 then
+				root.CFrame = CFrame.new(
+					nearestCoin.Position + Vector3.new(0, 3, 0)
+				)
+			end
+		end
+	end
+end)
